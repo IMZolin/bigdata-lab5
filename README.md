@@ -39,7 +39,14 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-2. Run the Pipeline
+2. Download the data
+
+```bash
+chmod +x download_data.sh
+./download_data.sh
+```
+
+3. Run the Pipeline
 
 Preprocess data and train the model:
 
@@ -48,7 +55,7 @@ python -m src.preprocess
 python -m src.train
 ```
 
-Make predictions:
+4. Make predictions:
 
 ```bash
 python -m src.predict
