@@ -2,3 +2,5 @@ bigdata-lab5
 __pycache__
 *.log
 .venv
+data/products.csv
+data/processed_products.csv

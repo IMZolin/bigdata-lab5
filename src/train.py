@@ -11,8 +11,6 @@ from pyspark.ml.feature import VectorAssembler, StandardScaler
 
 root_dir = Path(__file__).parent.parent
 CONFIG_PATH = str(root_dir / 'config.ini')
-DATA_PATH = str(root_dir / 'data' / 'processed_products.csv')
-MODEL_PATH = str(root_dir / 'model')
 
 
 class Trainer:
@@ -21,6 +19,8 @@ class Trainer:
         config = configparser.ConfigParser()
         config.optionxform = str
         config.read(CONFIG_PATH)
+
+        self.config = config
         spark_conf = SparkConf().setAll(config['SPARK'].items())
         self.spark = SparkSession.builder \
             .appName("KMeans") \
@@ -28,43 +28,32 @@ class Trainer:
             .config(conf=spark_conf) \
             .getOrCreate()
 
+        self.data_path = str(root_dir / config['DATA']['processed'])
+        self.model_path = str(root_dir / config['MODEL']['model_path'])
+
     def train_pipeline(self, k=5):
-        """Train a KMeans clustering model using a pipeline."""
-        # Read data
+        self.logger.info("Starting training...")
+
         df = self.spark.read.option("header", True) \
                .option("sep", "\t") \
                .option("inferSchema", True) \
-               .csv(DATA_PATH)
+               .csv(self.data_path)
 
-        # Convert string columns to numeric where possible
         for c in df.columns:
             if dict(df.dtypes)[c] == "string":
                 df = df.withColumn(c, col(c).cast(DoubleType()))
 
-        # Keep only numeric columns
         numeric_cols = [c for c, t in df.dtypes if t in ("double", "int", "float", "bigint")]
         df = df.select(numeric_cols).na.fill(0.0)
 
-        # Build pipeline stages
         assembler = VectorAssembler(inputCols=df.columns, outputCol="features")
-        scaler = StandardScaler(
-            inputCol="features",
-            outputCol="scaled_features",
-            withMean=True,
-            withStd=True
-        )
-        kmeans = KMeans(
-            k=k,
-            seed=42,
-            featuresCol="scaled_features",
-            predictionCol="cluster"
-        )
+        scaler = StandardScaler(inputCol="features", outputCol="scaled_features", withMean=True, withStd=True)
+        kmeans = KMeans(k=k, seed=42, featuresCol="scaled_features", predictionCol="cluster")
 
         pipeline = Pipeline(stages=[assembler, scaler, kmeans])
-
-        # Train and save model
         pipeline_model = pipeline.fit(df)
-        pipeline_model.write().overwrite().save(MODEL_PATH)
+
+        pipeline_model.write().overwrite().save(self.model_path)
         self.logger.info("Model successfully saved!")
 
     def stop(self):
