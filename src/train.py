@@ -32,36 +32,39 @@ class Trainer:
         self.model_path = str(root_dir / config['MODEL']['model_path'])
 
     def train_pipeline(self, k=5):
-        self.logger.info("Starting training...")
+        try:
+            self.logger.info("Starting training...")
 
-        df = self.spark.read.option("header", True) \
-               .option("sep", "\t") \
-               .option("inferSchema", True) \
-               .csv(self.data_path)
+            df = self.spark.read.option("header", True) \
+                .option("sep", "\t") \
+                .option("inferSchema", True) \
+                .csv(self.data_path)
 
-        for c in df.columns:
-            if dict(df.dtypes)[c] == "string":
-                df = df.withColumn(c, col(c).cast(DoubleType()))
+            for c in df.columns:
+                if dict(df.dtypes)[c] == "string":
+                    df = df.withColumn(c, col(c).cast(DoubleType()))
 
-        numeric_cols = [c for c, t in df.dtypes if t in ("double", "int", "float", "bigint")]
-        df = df.select(numeric_cols).na.fill(0.0)
+            numeric_cols = [c for c, t in df.dtypes if t in ("double", "int", "float", "bigint")]
+            df = df.select(numeric_cols).na.fill(0.0)
 
-        assembler = VectorAssembler(inputCols=df.columns, outputCol="features")
-        scaler = StandardScaler(inputCol="features", outputCol="scaled_features", withMean=True, withStd=True)
-        kmeans = KMeans(k=k, seed=42, featuresCol="scaled_features", predictionCol="cluster")
+            assembler = VectorAssembler(inputCols=df.columns, outputCol="features")
+            scaler = StandardScaler(inputCol="features", outputCol="scaled_features", withMean=True, withStd=True)
+            kmeans = KMeans(k=k, seed=42, featuresCol="scaled_features", predictionCol="cluster")
 
-        pipeline = Pipeline(stages=[assembler, scaler, kmeans])
-        pipeline_model = pipeline.fit(df)
+            pipeline = Pipeline(stages=[assembler, scaler, kmeans])
+            pipeline_model = pipeline.fit(df)
 
-        pipeline_model.write().overwrite().save(self.model_path)
-        self.logger.info("Model successfully saved!")
-
-    def stop(self):
-        self.spark.stop()
-        self.logger.info("SparkSession stopped")
+            pipeline_model.write().overwrite().save(self.model_path)
+            self.logger.info("Model successfully saved!")
+        except Exception as e:
+            self.logger.error(f"Error: {str(e)}", exc_info=True)
+            raise
+        finally:
+            self.spark.stop()
+            self.logger.info("Spark session stopped")
 
 
 if __name__ == "__main__":
     trainer = Trainer()
     trainer.train_pipeline(k=5)
-    trainer.stop()
+    

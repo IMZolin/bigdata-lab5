@@ -34,12 +34,16 @@ class Predictor:
 
     def predict(self, df: pyspark.sql.DataFrame):
         """Return DataFrame with predicted cluster labels."""
-        for c in df.columns:
-            df = df.withColumn(c, col(c).cast("double"))
-        df = df.na.fill(0)
-        result_df = self.pipeline.transform(df)
-        cols = df.columns + ["cluster"]
-        return result_df.select(*cols)
+        try:
+            for c in df.columns:
+                df = df.withColumn(c, col(c).cast("double"))
+            df = df.na.fill(0)
+            result_df = self.pipeline.transform(df)
+            cols = df.columns + ["cluster"]
+            return result_df.select(*cols)
+        except Exception as e:
+            self.logger.error(f"Error: {str(e)}", exc_info=True)
+            raise
 
     def stop(self):
         self.spark.stop()

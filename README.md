@@ -46,16 +46,27 @@ chmod +x download_data.sh
 ./download_data.sh
 ```
 
-3. Run the Pipeline
+### Word Count
 
-Preprocess data and train the model:
+The module `src/wordcount.py` counts word occurrences in a text file using PySpark.
+
+```bash
+python -m src.wordcount -i data/input.txt -o data/output
+```
+
+- `-i / --input` - path to the input text file (required)
+- `-o / --output` - path to save the word count results in CSV format (optional)
+
+### Run the K-Means pipeline
+
+1. Preprocess data and train the model:
 
 ```bash
 python -m src.preprocess
 python -m src.train
 ```
 
-4. Make predictions:
+2. Make predictions:
 
 ```bash
 python -m src.predict
