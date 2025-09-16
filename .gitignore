@@ -1,3 +1,4 @@
 bigdata-lab5
 __pycache__
 *.log
+.venv
